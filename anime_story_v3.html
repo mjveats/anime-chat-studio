@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Chat Studio v9.2 (Shorts Ready)</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --panel-color: #ffffff;
+            --accent-color: #0084ff;
+            --danger-color: #ff3b30;
+            --success-color: #34c759;
+            --text-color: #1c1e21;
+            --border-color: #ddd;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body { 
+            background-color: var(--bg-color); color: var(--text-color); 
+            margin: 0; padding: 20px; height: 100vh; display: flex; flex-direction: column; gap: 15px;
+        }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--panel-color); padding: 15px 20px; border-radius: 8px;
+            border: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+
+        .header-controls { display: flex; gap: 20px; align-items: center; }
+
+        .toggle-switch { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: bold; cursor: pointer; }
+        .toggle-switch input { width: 16px; height: 16px; cursor: pointer; accent-color: #333; }
+
+        h1 { font-size: 1.2rem; margin: 0; color: #333; display: flex; align-items: center; gap: 10px; }
+        .status-dot { height: 10px; width: 10px; background: var(--danger-color); border-radius: 50%; display: inline-block; }
+        .status-dot.active { background: var(--success-color); box-shadow: 0 0 5px var(--success-color); }
+
+        .launch-btn {
+            background: var(--accent-color); color: white; border: none; padding: 10px 20px;
+            border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .launch-btn:hover { opacity: 0.9; }
+
+        .workspace {
+            display: grid; grid-template-columns: 380px 1fr; gap: 15px; flex: 1; min-height: 0;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            background: var(--panel-color); border-radius: 8px; border: 1px solid var(--border-color); 
+            display: flex; flex-direction: column; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden;
+        }
+
+        .roster-section {
+            flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; border-bottom: 2px solid #eee;
+        }
+        .roster-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px; font-weight: bold; color: #555; font-size: 0.9rem;
+        }
+        .btn-text-danger { background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 0.8rem; }
+        .btn-text-danger:hover { text-decoration: underline; }
+
+        #roster-list { display: flex; flex-direction: column; gap: 5px; }
+
+        .char-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px; border-radius: 6px; border: 1px solid #eee; background: #f9f9f9; flex-shrink: 0;
+        }
+        .char-item.is-pov { border-color: var(--accent-color); background: #f0f7ff; }
+        
+        .char-info { display: flex; align-items: center; gap: 10px; flex: 1; overflow: hidden; }
+        .char-item img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd; }
+        .char-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; color: #333; }
+        .delete-btn { background: transparent; color: #999; border: none; font-size: 1.2rem; cursor: pointer; }
+        .delete-btn:hover { color: var(--danger-color); }
+
+        input[type="radio"] { accent-color: var(--accent-color); cursor: pointer; width: 16px; height: 16px; }
+
+        /* Bottom: Library */
+        .library-section {
+            padding: 15px; background: #fff; display: flex; flex-direction: column; gap: 10px;
+            height: 50%; overflow: hidden; 
+        }
+
+        .tabs { display: flex; gap: 10px; border-bottom: 1px solid #ddd; padding-bottom: 10px; flex-shrink: 0; }
+        .tab-btn {
+            flex: 1; padding: 8px; border: none; background: #f0f2f5; color: #666; 
+            border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 0.85rem;
+        }
+        .tab-btn.active { background: #333; color: white; }
+
+        #view-library { display: flex; flex-direction: column; gap: 8px; height: 100%; overflow: hidden; }
+        .filter-row { display: flex; gap: 5px; flex-shrink: 0; }
+        select, input { background: #fff; border: 1px solid #ccc; padding: 8px; border-radius: 4px; font-size: 0.85rem; }
+        .search-bar { flex: 1; }
+        
+        .refresh-btn {
+            background: #eee; border: 1px solid #ccc; width: 35px; border-radius: 4px; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .refresh-btn:hover { background: #ddd; }
+
+        .library-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px;
+            overflow-y: auto; padding: 2px;
+        }
+        .lib-char {
+            display: flex; flex-direction: column; align-items: center; cursor: pointer;
+            padding: 8px; border-radius: 4px; transition: background 0.2s; position: relative;
+            border: 1px solid transparent;
+        }
+        .lib-char:hover { background: #f0f2f5; border-color: #ddd; }
+        .lib-char img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd; margin-bottom: 5px; }
+        .lib-char span { font-size: 0.75rem; text-align: center; overflow: hidden; white-space: nowrap; width: 100%; text-overflow: ellipsis; }
+        
+        .lib-actions {
+            position: absolute; top: 0; right: 0; display: none; gap: 2px;
+        }
+        .lib-char:hover .lib-actions { display: flex; }
+        .action-icon {
+            width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 10px; color: white; cursor: pointer;
+        }
+        .bg-edit { background: #0084ff; }
+        .bg-del { background: #ff3b30; }
+
+        #view-create { display: none; flex-direction: column; gap: 8px; overflow-y: auto; }
+        .file-upload-row { display: flex; gap: 5px; }
+        .file-btn {
+            background: #eee; border: 1px solid #ccc; padding: 5px 10px; cursor: pointer;
+            border-radius: 4px; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+        }
+        #file-name-display { font-size: 0.75rem; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Sounds View */
+        #view-sounds { display: none; flex-direction: column; gap: 10px; overflow-y: auto; }
+        .sound-card {
+            background: #f9f9f9; border: 1px solid #eee; padding: 10px; border-radius: 6px;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .sound-label { font-size: 0.8rem; font-weight: bold; color: #555; }
+        .sound-actions { display: flex; gap: 5px; align-items: center; }
+        .sound-status { font-size: 0.75rem; color: #888; margin-left: auto; font-style: italic; }
+        .sound-status.active { color: #34c759; font-weight: bold; font-style: normal; }
+        
+        #toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #333; color: white; padding: 10px 20px; border-radius: 20px;
+            font-size: 0.9rem; font-weight: bold; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        #toast.visible { opacity: 1; top: 30px; }
+
+        .editor {
+            background: var(--panel-color); border-radius: 8px; padding: 20px;
+            border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .info-pill { background: #eee; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; color: #555; font-weight: bold; }
+        
+        .editor-toolbar {
+            display: flex; gap: 10px; margin-bottom: 10px;
+        }
+
+        .tool-btn {
+            background: #f0f2f5; border: 1px solid #ddd; padding: 5px 10px; border-radius: 4px; 
+            font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 5px;
+        }
+        .tool-btn:hover { background: #e4e6eb; }
+
+        textarea {
+            flex: 1; background: #f9f9f9; border: 1px solid #ccc; color: #333;
+            padding: 15px; border-radius: 8px; resize: none; font-size: 1rem; line-height: 1.6;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        textarea:focus { outline: 2px solid var(--accent-color); border-color: transparent; }
+
+        .controls-row {
+            display: flex; align-items: center; gap: 15px;
+            background: #f0f2f5; padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd;
+        }
+        .btn-play {
+            flex: 2; background: var(--success-color); color: white; border: none; padding: 12px;
+            border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 5px;
+        }
+        .btn-play:hover { opacity: 0.9; }
+        .btn-play:disabled { background: #ccc; cursor: not-allowed; opacity: 0.7; }
+        .btn-stop {
+            flex: 1; background: var(--danger-color); color: white; border: none; padding: 12px;
+            border-radius: 6px; font-weight: bold; cursor: pointer;
+        }
+        .progress-bar { height: 4px; background: #ddd; border-radius: 2px; overflow: hidden; width: 100%; }
+        .progress-fill { height: 100%; background: var(--accent-color); width: 0%; transition: width 0.3s; }
+        .script-guide { font-size: 0.85rem; color: #666; margin-top: -10px; margin-bottom: 10px; background: #eef; padding: 10px; border-radius: 5px; }
+        .code-snippet { background: #ddd; color: #333; padding: 2px 5px; border-radius: 3px; font-family: monospace; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="toast">Character Added!</div>
+
+    <div class="header">
+        <h1><span id="connection-status" class="status-dot"></span> Anime Chat Studio v9.2</h1>
+        
+        <div class="header-controls">
+            <label class="toggle-switch">
+                <input type="checkbox" id="auto-scroll-toggle" checked onchange="toggleAutoScroll()">
+                Auto-Scroll
+            </label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()">
+                Dark Mode
+            </label>
+            <button class="launch-btn" onclick="openChatWindow()">🚀 Launch Output Window</button>
+        </div>
+    </div>
+
+    <div class="workspace">
+        <div class="sidebar">
+            <div class="roster-section">
+                <div class="roster-header">
+                    <label>ACTIVE CAST (Select POV)</label>
+                    <button class="btn-text-danger" onclick="resetRoster()">Clear</button>
+                </div>
+                <div id="roster-list"></div>
+            </div>
+
+            <div class="library-section">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('library')">Library</button>
+                    <button class="tab-btn" onclick="switchTab('create')" id="create-tab-btn">Create</button>
+                    <button class="tab-btn" onclick="switchTab('sounds')">Sounds</button>
+                </div>
+
+                <!-- LIBRARY -->
+                <div id="view-library">
+                    <div class="filter-row">
+                        <select id="anime-filter" style="width: 40%;" onchange="renderLibrary()">
+                            <option value="All">All Anime</option>
+                        </select>
+                        <input type="text" id="lib-search" class="search-bar" placeholder="Search..." oninput="renderLibrary()">
+                        <button class="refresh-btn" onclick="forceRefreshLibrary()" title="Refresh List"><i class="ph ph-arrows-clockwise"></i></button>
+                    </div>
+                    <div class="library-grid" id="library-grid"></div>
+                </div>
+
+                <!-- CREATE -->
+                <div id="view-create">
+                    <input type="hidden" id="edit-id"> 
+                    <label>Character Name</label>
+                    <input type="text" id="new-name" placeholder="Name (e.g., Jinwoo)">
+                    <label>Anime Category</label>
+                    <input type="text" id="new-anime" placeholder="Anime (e.g., Solo Leveling)" list="anime-suggestions">
+                    <datalist id="anime-suggestions"></datalist>
+                    <label>Profile Image</label>
+                    <div class="file-upload-row">
+                        <input type="text" id="new-img" placeholder="Image URL..." style="flex:1;">
+                        <label for="file-upload" class="file-btn"><i class="ph ph-upload-simple"></i> Upload</label>
+                        <input type="file" id="file-upload" accept="image/*" style="display:none" onchange="handleFileUpload(this)">
+                    </div>
+                    <div id="file-name-display"></div>
+                    
+                    <div style="display:flex; gap: 5px; margin-top: 10px;">
+                        <button onclick="saveToLibrary()" id="save-btn" style="flex:1; padding: 10px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Save Character</button>
+                        <button onclick="cancelEdit()" id="cancel-btn" style="flex:1; padding: 10px; background: #ddd; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; display: none;">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- SOUNDS -->
+                <div id="view-sounds">
+                    <p style="font-size:0.75rem; color:#666;">Upload your MP3/WAV files. They will loop for typing and play once for messages.</p>
+                    
+                    <div class="sound-card">
+                        <div class="sound-label">NPC Typing (Loops during typing)</div>
+                        <div class="sound-actions">
+                            <label for="up-npc" class="file-btn"><i class="ph ph-upload"></i> Upload</label>
+                            <input type="file" id="up-npc" accept="audio/*" style="display:none" onchange="uploadSound('npcType', this)">
+                            <button class="file-btn" onclick="resetSound('npcType')"><i class="ph ph-arrow-counter-clockwise"></i></button>
+                            <div id="status-npcType" class="sound-status">Default</div>
+                        </div>
+                    </div>
+
+                    <div class="sound-card">
+                        <div class="sound-label">POV Typing (Loops during input)</div>
+                        <div class="sound-actions">
+                            <label for="up-pov" class="file-btn"><i class="ph ph-upload"></i> Upload</label>
+                            <input type="file" id="up-pov" accept="audio/*" style="display:none" onchange="uploadSound('povType', this)">
+                            <button class="file-btn" onclick="resetSound('povType')"><i class="ph ph-arrow-counter-clockwise"></i></button>
+                            <div id="status-povType" class="sound-status">Default</div>
+                        </div>
+                    </div>
+
+                    <div class="sound-card">
+                        <div class="sound-label">Received Message (NPC)</div>
+                        <div class="sound-actions">
+                            <label for="up-rec" class="file-btn"><i class="ph ph-upload"></i> Upload</label>
+                            <input type="file" id="up-rec" accept="audio/*" style="display:none" onchange="uploadSound('received', this)">
+                            <button class="file-btn" onclick="resetSound('received')"><i class="ph ph-arrow-counter-clockwise"></i></button>
+                            <div id="status-received" class="sound-status">Default</div>
+                        </div>
+                    </div>
+
+                    <div class="sound-card">
+                        <div class="sound-label">Sent Message (POV)</div>
+                        <div class="sound-actions">
+                            <label for="up-sent" class="file-btn"><i class="ph ph-upload"></i> Upload</label>
+                            <input type="file" id="up-sent" accept="audio/*" style="display:none" onchange="uploadSound('sent', this)">
+                            <button class="file-btn" onclick="resetSound('sent')"><i class="ph ph-arrow-counter-clockwise"></i></button>
+                            <div id="status-sent" class="sound-status">Default</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="editor">
+            <div class="editor-header">
+                <label>SCRIPT EDITOR</label>
+                <div class="info-pill" id="status-text">Ready</div>
+            </div>
+            
+            <div class="editor-toolbar">
+                 <button class="tool-btn" onclick="saveScript()"><i class="ph ph-floppy-disk"></i> Save Script</button>
+                 <button class="tool-btn" onclick="loadScript()"><i class="ph ph-folder-open"></i> Load Script</button>
+            </div>
+
+            <div class="script-guide">
+                <strong>Syntax:</strong> <code>Name [2]: Message</code> | <code>>></code> (Fast)
+            </div>
+            <textarea id="script-input" placeholder="Paste script here..."></textarea>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+            <div class="controls-row">
+                <button class="btn-play" id="play-btn" onclick="playScript()">▶ PLAY SCRIPT</button>
+                <button class="btn-stop" onclick="stopScript()">■ STOP</button>
+                <div style="display:flex; flex-direction: column; gap: 5px; flex: 1;">
+                    <input type="text" id="group-name" placeholder="Group Name..." style="padding: 5px; font-size: 0.8rem;" onchange="updateGroupInfo()">
+                    <input type="text" id="bg-url" placeholder="BG URL (Optional)" style="padding: 5px; font-size: 0.8rem;" onchange="updateBackground()">
+                    <button onclick="clearChat()" style="background:#eee; color:#333; border:none; border-radius:4px; cursor:pointer; padding:3px;">Clear Chat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chatWindow = null;
+        let isPlaying = false;
+        let stopFlag = false;
+        let roster = []; 
+        let library = []; 
+        let activeAudio = { pov: null, npc: null };
+        let autoScrollEnabled = true;
+
+        // --- CUSTOM AUDIO MANAGER ---
+        let customSounds = { sent: null, received: null, npcType: null, povType: null };
+
+        function loadSounds() {
+            const saved = localStorage.getItem('animeChatSounds');
+            if (saved) {
+                customSounds = JSON.parse(saved);
+                for (const key in customSounds) {
+                    const el = document.getElementById(`status-${key}`);
+                    if(el && customSounds[key]) {
+                        el.innerText = "Custom Active";
+                        el.classList.add('active');
+                    }
+                }
+            }
+        }
+
+        function uploadSound(key, input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                // Audio limit: 2MB
+                if(file.size > 2000000) { alert("Audio too large! Keep under 2MB."); return; }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    customSounds[key] = e.target.result;
+                    try { localStorage.setItem('animeChatSounds', JSON.stringify(customSounds)); } 
+                    catch(e) { alert("Storage Full! Remove other sounds first."); return; }
+                    
+                    const el = document.getElementById(`status-${key}`);
+                    el.innerText = "Custom Active";
+                    el.classList.add('active');
+                    showToast("Sound Saved!");
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function resetSound(key) {
+            customSounds[key] = null;
+            localStorage.setItem('animeChatSounds', JSON.stringify(customSounds));
+            const el = document.getElementById(`status-${key}`);
+            el.innerText = "Default";
+            el.classList.remove('active');
+            showToast("Reset to Default");
+        }
+
+        // --- AUDIO PLAYBACK LOGIC ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playLoopingSound(type) {
+            stopLoopingSound(type);
+
+            if (customSounds[type]) {
+                const audio = new Audio(customSounds[type]);
+                audio.loop = true;
+                audio.volume = 0.6;
+                audio.play().catch(e => console.error("Loop play fail", e));
+                activeAudio[type] = audio;
+            } else {
+                if (type === 'povType') {
+                    activeAudio[type] = setInterval(synthClick, 120);
+                } else if (type === 'npcType') {
+                    activeAudio[type] = setInterval(synthMechanical, 200);
+                }
+            }
+        }
+
+        function stopLoopingSound(type) {
+            if (!activeAudio[type]) return;
+            
+            if (activeAudio[type] instanceof Audio) {
+                activeAudio[type].pause();
+                activeAudio[type].currentTime = 0;
+            } else {
+                clearInterval(activeAudio[type]);
+            }
+            activeAudio[type] = null;
+        }
+
+        function playOneShot(key, fallbackFn) {
+            if (customSounds[key]) {
+                const audio = new Audio(customSounds[key]);
+                audio.volume = 0.6;
+                audio.play().catch(e => console.error("Audio Play Error", e));
+            } else {
+                fallbackFn(); 
+            }
+        }
+
+        // --- SYNTH FALLBACKS ---
+        function synthMechanical() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(200, now); osc.frequency.exponentialRampToValueAtTime(100, now+0.08);
+            gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.001, now+0.08);
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.start(now); osc.stop(now+0.08);
+        }
+        function synthSent() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.01, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.02); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        }
+        function synthReceived() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime; const gain = audioCtx.createGain(); gain.connect(audioCtx.destination);
+            [1318, 1046, 1567].forEach((f, i) => {
+                const osc = audioCtx.createOscillator(); osc.type = 'sine'; osc.frequency.value = f;
+                const nGain = audioCtx.createGain(); nGain.gain.setValueAtTime(0, now + (i*0.08)); nGain.gain.linearRampToValueAtTime(0.08, now + (i*0.08)+0.01); nGain.gain.exponentialRampToValueAtTime(0.001, now + (i*0.08)+0.1);
+                osc.connect(nGain); nGain.connect(gain); osc.start(now + (i*0.08)); osc.stop(now + (i*0.08)+0.15);
+            });
+        }
+        function synthClick() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(2000, now);
+            gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.001, now+0.03);
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.start(now); osc.stop(now+0.03);
+        }
+
+        // --- MAIN APP LOGIC ---
+
+        function init() {
+            loadLibrary(); loadSounds();
+            // Load previous script if available
+            const savedScript = localStorage.getItem('animeChatScript_v9');
+            if(savedScript) document.getElementById('script-input').value = savedScript;
+
+            updateAnimeDropdown(); renderLibrary(); renderRoster();
+            setInterval(checkWindowStatus, 1000);
+            
+            // Auto-save script
+            document.getElementById('script-input').addEventListener('input', (e) => {
+                localStorage.setItem('animeChatScript_v9', e.target.value);
+            });
+        }
+
+        // Script Saving Logic
+        function saveScript() {
+            const content = document.getElementById('script-input').value;
+            const blob = new Blob([content], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'anime_chat_script.txt';
+            a.click();
+        }
+
+        function loadScript() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    document.getElementById('script-input').value = event.target.result;
+                    localStorage.setItem('animeChatScript_v9', event.target.result);
+                };
+                reader.readAsText(file);
+            }
+            input.click();
+        }
+
+        function toggleAutoScroll() {
+            autoScrollEnabled = document.getElementById('auto-scroll-toggle').checked;
+        }
+
+        // UI & Library (Standard Logic)
+        function loadLibrary() { try { const s=localStorage.getItem('animeChatLibrary_v7'); if(s) library=JSON.parse(s); } catch(e){} }
+        function saveLibrary() { localStorage.setItem('animeChatLibrary_v7', JSON.stringify(library)); updateAnimeDropdown(); renderLibrary(); }
+        function toggleDarkMode() { const d=document.getElementById('dark-mode-toggle').checked; if(chatWindow && !chatWindow.closed) chatWindow.document.body.classList.toggle('dark-mode', d); }
+        function switchTab(tab) { document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); document.getElementById('view-library').style.display = tab==='library'?'flex':'none'; document.getElementById('view-create').style.display = tab==='create'?'flex':'none'; document.getElementById('view-sounds').style.display = tab==='sounds'?'flex':'none'; document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active'); }
+        function handleFileUpload(input) { if(input.files[0]) { const r=new FileReader(); r.onload=e=>{ document.getElementById('new-img').value=e.target.result; document.getElementById('file-name-display').innerText=input.files[0].name; }; r.readAsDataURL(input.files[0]); }}
+        function showToast(msg, isErr=false) { const t=document.getElementById('toast'); t.innerText=msg; t.style.backgroundColor=isErr?"#ff3b30":"#333"; t.classList.add('visible'); setTimeout(()=>t.classList.remove('visible'), 2500); }
+        function saveToLibrary() { const id=document.getElementById('edit-id').value; const name=document.getElementById('new-name').value.trim(); const anime=document.getElementById('new-anime').value.trim()||"Uncategorized"; const img=document.getElementById('new-img').value.trim(); if(!name) return alert("Name required"); if(id){ const i=library.findIndex(c=>c.id==id); if(i>-1) library[i]={...library[i], name, anime, img}; } else { library.push({id:Date.now(), name, anime, img}); } saveLibrary(); resetCreateForm(); switchTab('library'); showToast("Saved!"); }
+        function editCharacter(id,e) { e.stopPropagation(); const c=library.find(x=>x.id==id); if(!c)return; document.getElementById('edit-id').value=c.id; document.getElementById('new-name').value=c.name; document.getElementById('new-anime').value=c.anime; document.getElementById('new-img').value=c.img; document.getElementById('create-tab-btn').innerText="Edit Mode"; document.getElementById('save-btn').innerText="Update"; document.getElementById('cancel-btn').style.display="block"; switchTab('create'); }
+        function deleteFromLibrary(id,e) { e.stopPropagation(); if(confirm("Delete?")) { library=library.filter(x=>x.id!==id); saveLibrary(); showToast("Deleted", true); } }
+        function cancelEdit() { resetCreateForm(); switchTab('library'); }
+        function resetCreateForm() { document.getElementById('edit-id').value=""; document.getElementById('new-name').value=""; document.getElementById('new-anime').value=""; document.getElementById('new-img').value=""; document.getElementById('file-upload').value=""; document.getElementById('file-name-display').innerText=""; document.getElementById('create-tab-btn').innerText="Create New"; document.getElementById('save-btn').innerText="Save"; document.getElementById('cancel-btn').style.display="none"; }
+        function forceRefreshLibrary() { renderLibrary(); updateAnimeDropdown(); showToast("Refreshed"); }
+        function renderLibrary() { const g=document.getElementById('library-grid'); const f=document.getElementById('anime-filter').value; const s=document.getElementById('lib-search').value.toLowerCase(); g.innerHTML=''; const fil=library.filter(c=>(f==='All'||c.anime===f)&&c.name.toLowerCase().includes(s)); if(fil.length===0) return g.innerHTML='<div style="color:#aaa;font-size:0.8rem;text-align:center;">Empty</div>'; fil.forEach(c=>{ const d=document.createElement('div'); d.className='lib-char'; d.innerHTML=`<div class="lib-actions"><div class="action-icon bg-edit" onclick="editCharacter(${c.id}, event)">✎</div><div class="action-icon bg-del" onclick="deleteFromLibrary(${c.id}, event)">×</div></div><img src="${c.img}" onerror="this.src='https://via.placeholder.com/45'"><span>${c.name}</span>`; d.onclick=()=>addToRoster(c); g.appendChild(d); }); }
+        function updateAnimeDropdown() { const s=document.getElementById('anime-filter'); const l=document.getElementById('anime-suggestions'); const cur=s.value; const a=[...new Set(library.map(c=>c.anime))].sort(); l.innerHTML=''; s.innerHTML='<option value="All">All Anime</option>'; a.forEach(x=>{ if(x){ l.innerHTML+=`<option value="${x}">`; const o=document.createElement('option'); o.value=x; o.innerText=x; s.appendChild(o); } }); if(a.includes(cur)) s.value=cur; else s.value="All"; }
+        function addToRoster(c) { if(roster.find(x=>x.id===c.id)) return; roster.push({...c, isPov:false}); renderRoster(); }
+        function setPov(id) { roster=roster.map(c=>({...c, isPov:c.id===id})); renderRoster(); }
+        function removeFromRoster(id) { roster=roster.filter(c=>c.id!==id); renderRoster(); }
+        function resetRoster() { if(confirm("Clear?")) { roster=[]; renderRoster(); } }
+        function renderRoster() { const l=document.getElementById('roster-list'); l.innerHTML=''; roster.forEach(c=>{ const d=document.createElement('div'); d.className=`char-item ${c.isPov?'is-pov':''}`; d.innerHTML=`<input type="radio" name="pov-select" onchange="setPov(${c.id})" ${c.isPov?'checked':''}><div class="char-info"><img src="${c.img}"><span class="char-name">${c.name}</span></div><button class="delete-btn" onclick="removeFromRoster(${c.id})">×</button>`; l.appendChild(d); }); updateGroupInfo(); }
+
+        // --- CHAT WINDOW ---
+        function openChatWindow() {
+            // UPDATED: Use 9:16 Ratio for Shorts (450x800)
+            chatWindow = window.open("", "AnimeChatWindow", "width=450,height=800,menubar=no,toolbar=no,location=no,status=no");
+            if (!chatWindow) return alert("Pop-up blocked!");
+            chatWindow.document.write(`<!DOCTYPE html><html><head><title>Output View</title><script src="https://unpkg.com/@phosphor-icons/web"><\/script>${CHAT_CSS}<script>function toggleGuide(){const g=document.getElementById('shorts-guide');g.style.display=g.style.display==='none'?'block':'none';}<\/script></head><body><div id="shorts-guide" style="display:none;"><div class="guide-area-bottom"></div><div class="guide-area-right"></div></div><div id="app-header"><div class="header-left"><i class="ph-bold ph-caret-left back-arrow"></i><div class="avatar-stack" id="display-stack"></div><div class="group-info" style="margin-left: 10px;"><div class="group-name" id="display-group-name">Group Chat</div><div class="member-count" id="display-count">${roster.length} members</div></div></div><div class="header-right"><i class="ph-fill ph-ruler" style="cursor:pointer;margin-right:10px;" onclick="toggleGuide()" title="Toggle Shorts Safe Zone"></i><i class="ph ph-phone"></i><i class="ph ph-video-camera"></i></div></div><div id="chat-container"></div><div id="floating-typing"></div><div id="input-area"><div class="input-pill"><div class="camera-circle"><i class="ph-fill ph-camera"></i></div><div class="fake-input" id="fake-input"><span class="input-placeholder">Message...</span></div><div class="right-icons" id="right-icons"><i class="ph ph-microphone"></i><i class="ph ph-image"></i><i class="ph ph-sticker"></i><i class="ph ph-plus-circle"></i></div><div class="send-btn-icon" id="send-btn"><i class="ph-fill ph-paper-plane-right"></i></div></div></div></body></html>`);
+            chatWindow.document.close();
+            setTimeout(() => { updateBackground(); updateGroupInfo(); toggleDarkMode(); }, 500);
+        }
+        function checkWindowStatus() { const d=document.getElementById('connection-status'); if(chatWindow && !chatWindow.closed) d.classList.add('active'); else d.classList.remove('active'); }
+        function updateGroupInfo() { if(!chatWindow || chatWindow.closed) return; chatWindow.document.getElementById('display-group-name').innerText = document.getElementById('group-name').value || "Group Chat"; chatWindow.document.getElementById('display-count').innerText = `${roster.length} members`; const s=chatWindow.document.getElementById('display-stack'); s.innerHTML=''; roster.slice(0,2).forEach(c => s.innerHTML+=`<img src="${c.img}" class="stack-img">`); }
+        function updateBackground() { const url=document.getElementById('bg-url').value; if(url && chatWindow && !chatWindow.closed) chatWindow.document.body.style.backgroundImage = `url('${url}')`; }
+        function clearChat() { if(chatWindow && !chatWindow.closed) chatWindow.document.getElementById('chat-container').innerHTML=''; }
+
+        const CHAT_CSS = `
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+                * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', Helvetica, Arial, sans-serif; }
+                body { background-color: #ffffff; height: 100vh; overflow: hidden; display: flex; flex-direction: column; transition: background 0.3s; background-size: cover; background-position: center; }
+                body.dark-mode { background-color: #000000; color: #fff; }
+                
+                /* Shorts Guide Overlay */
+                #shorts-guide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+                .guide-area-bottom { position: absolute; bottom: 0; left: 0; width: 100%; height: 18%; background: rgba(255, 0, 0, 0.2); border-top: 2px dashed red; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; text-shadow: 1px 1px 0 #000; font-size: 1.2rem; }
+                .guide-area-bottom::after { content: "TITLE & DESC AREA"; }
+                .guide-area-right { position: absolute; bottom: 18%; right: 0; width: 18%; height: 40%; background: rgba(255, 0, 0, 0.2); border-left: 2px dashed red; }
+
+                #app-header { background: #ffffff; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; z-index: 10; border-bottom: 1px solid #efefef; height: 70px; transition: background 0.3s; }
+                body.dark-mode #app-header { background: #000000; border-bottom: 1px solid #262626; color: #fff; }
+                .header-left { display: flex; align-items: center; gap: 15px; } .back-arrow { font-size: 28px; color: #000; } body.dark-mode .back-arrow { color: #fff; }
+                .group-info { display: flex; flex-direction: column; } .group-name { font-weight: 700; font-size: 1.2rem; color: #000; } body.dark-mode .group-name { color: #fff; }
+                .member-count { font-size: 0.85rem; color: #8e8e8e; font-weight: 400; }
+                .avatar-stack { display: flex; padding-left: 10px; } .stack-img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid #fff; margin-left: -12px; object-fit: cover; background: #ddd; } body.dark-mode .stack-img { border: 2px solid #000; } .stack-img:first-child { margin-left: 0; }
+                .header-right { display: flex; gap: 20px; color: #000; font-size: 26px; } body.dark-mode .header-right { color: #fff; }
+                #chat-container { position: relative; z-index: 2; flex: 1; padding: 20px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; padding-bottom: 80px; transition: padding-bottom 0.3s ease; } #chat-container::-webkit-scrollbar { display: none; } 
+                #chat-container.shift-up { padding-bottom: 120px; }
+                #chat-container::after { content: ""; display: block; height: 10px; }
+                #input-area { background: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: center; z-index: 10; min-height: 80px; position: relative; transition: background 0.3s; }
+                body.dark-mode #input-area { background: #000000; }
+                .input-pill { background: #efefef; border-radius: 30px; display: flex; align-items: center; width: 100%; padding: 8px 15px; gap: 12px; transition: background 0.3s; }
+                body.dark-mode .input-pill { background: #262626; }
+                .camera-circle { background: #0095f6; color: white; width: 36px; height: 36px; border-radius: 50%; font-size: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                .fake-input { flex: 1; font-size: 1rem; color: #000; display: flex; align-items: center; height: 40px; white-space: nowrap; overflow: hidden; }
+                body.dark-mode .fake-input { color: #fff; }
+                .input-placeholder { color: #8e8e8e; }
+                .right-icons { display: flex; gap: 15px; color: #000; font-size: 24px; align-items: center; } body.dark-mode .right-icons { color: #fff; }
+                .send-btn-icon { color: #0095f6; font-size: 24px; display: none; animation: popIn 0.2s; }
+                .message-row { display: flex; align-items: flex-end; gap: 10px; max-width: 75%; width: 100%; position: relative; animation: fadeIn 0.3s ease-out; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+                .avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #ddd; flex-shrink: 0; }
+                .content-col { display: flex; flex-direction: column; max-width: 100%; }
+                .name-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; margin-left: 2px; }
+                .username { font-weight: 400; font-size: 0.75rem; color: #8e8e8e; }
+                .timestamp { font-size: 0.7rem; color: #8e8e8e; font-weight: 300; }
+                .bubble { background-color: #efefef; color: #000; padding: 10px 16px; border-radius: 22px; font-size: 1rem; line-height: 1.3; word-wrap: break-word; position: relative; overflow: visible; transition: background 0.3s, color 0.3s; }
+                body.dark-mode .bubble { background-color: #262626; color: #fff; }
+                .bubble.is-image { padding: 0; background: transparent !important; } .bubble.is-image img { display: block; max-width: 300px; width: 100%; border-radius: 20px; }
+                .message-row.right { flex-direction: row-reverse; align-self: flex-end; } .message-row.right .content-col { align-items: flex-end; } .message-row.right .name-row { display: none; } 
+                .message-row.right .bubble { background-color: #3797f0; color: #fff; } 
+                .system-row { display: flex; justify-content: center; margin: 15px 0; width: 100%; } .system-bubble { color: #8e8e8e; font-size: 0.8rem; font-weight: 400; text-align: center; }
+                #floating-typing { position: absolute; bottom: 85px; left: 20px; z-index: 5; font-size: 0.8rem; color: #8e8e8e; font-weight: 500; display: flex; flex-direction: column; gap: 2px; pointer-events: none; transition: bottom 0.3s ease; }
+                .typing-text { color: #8e8e8e; font-size: 0.85rem; font-weight: 500; background: transparent; padding: 5px; animation: fadeIn 0.2s; }
+                .reaction { position: absolute; bottom: -18px; right: -8px; background: #fff; border-radius: 12px; padding: 1px 3px; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.15); z-index: 10; border: 2px solid #fff; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+                body.dark-mode .reaction { background: #262626; border: 2px solid #000; }
+                .message-row.right .reaction { left: -8px; right: auto; }
+                @keyframes popIn { from{transform:scale(0);} to{transform:scale(1);} }
+            </style>
+        `;
+
+        const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        async function playScript() {
+            if (!chatWindow || chatWindow.closed) return alert("Launch Window first!");
+            const rawText = document.getElementById('script-input').value;
+            if(!rawText.trim()) return alert("Script empty!");
+
+            stopFlag = false; isPlaying = true;
+            document.getElementById('play-btn').disabled = true; document.getElementById('status-text').innerText = "Playing..."; document.getElementById('script-input').disabled = true;
+
+            if(chatWindow.document.getElementById('chat-container')) { chatWindow.document.getElementById('chat-container').innerHTML = ''; chatWindow.document.getElementById('chat-container').classList.remove('shift-up'); }
+            if(chatWindow.document.getElementById('floating-typing')) { chatWindow.document.getElementById('floating-typing').innerHTML = ''; }
+
+            const lines = rawText.split('\n').filter(line => line.trim() !== '');
+            const regex = /^(>>)?\s*(?:(sys|react):\s*(.+)|([^[\]:]+)(?:\[(\d+(?:\.\d+)?)\])?:\s*(.+))$/;
+
+            for (let i = 0; i < lines.length; i++) {
+                if (stopFlag) break;
+                const line = lines[i]; const match = line.match(regex);
+                if (!match) continue;
+                const isFast = !!match[1]; 
+                const typeSys = match[2]; const sysContent = match[3];
+                const charName = match[4]; const timeParam = match[5] ? parseFloat(match[5]) : 2.0; const message = match[6];
+                document.getElementById('progress-fill').style.width = ((i/lines.length)*100) + '%';
+
+                if (typeSys === 'sys') { showSystemMessage(sysContent); await wait(1500); continue; }
+                if (typeSys === 'react') { showReaction(sysContent); await wait(1000); continue; }
+
+                const char = roster.find(c => c.name.toLowerCase() === charName.trim().toLowerCase());
+                if (!char) continue;
+
+                if (char.isPov) {
+                    await typeInInputBox(message, timeParam);
+                } else {
+                    const typingId = showTypingIndicator(char.name);
+                    playLoopingSound('npcType'); // LOOP ON
+                    await wait(timeParam * 1000);
+                    removeTypingIndicator(typingId);
+                    stopLoopingSound('npcType'); // LOOP OFF
+                }
+
+                if (stopFlag) break;
+                showMessage(char, message);
+                await wait(isFast ? 300 : 1500);
+            }
+
+            isPlaying = false; document.getElementById('play-btn').disabled = false; document.getElementById('script-input').disabled = false; document.getElementById('status-text').innerText = "Finished";
+            // Ensure loops killed
+            stopLoopingSound('npcType'); stopLoopingSound('povType');
+        }
+
+        function stopScript() {
+            stopFlag = true; isPlaying = false;
+            if (chatWindow && !chatWindow.closed) { chatWindow.document.getElementById('floating-typing').innerHTML = ''; chatWindow.document.getElementById('chat-container').classList.remove('shift-up'); }
+            stopLoopingSound('npcType'); stopLoopingSound('povType');
+            document.getElementById('play-btn').disabled = false; document.getElementById('script-input').disabled = false; document.getElementById('status-text').innerText = "Stopped";
+        }
+
+        function showTypingIndicator(name) {
+            if (!chatWindow || chatWindow.closed) return null;
+            const container = chatWindow.document.getElementById('floating-typing');
+            const chatContainer = chatWindow.document.getElementById('chat-container');
+            const id = 'typing-' + Date.now() + Math.random().toString(36).substr(2, 9);
+            const div = chatWindow.document.createElement('div'); div.className = 'typing-text'; div.id = id; div.innerText = `${name} is typing...`;
+            container.appendChild(div);
+            chatContainer.classList.add('shift-up'); chatContainer.scrollTop = chatContainer.scrollHeight; 
+            return id;
+        }
+
+        function removeTypingIndicator(id) {
+            if (!chatWindow || chatWindow.closed) return;
+            const el = chatWindow.document.getElementById(id); if(el) el.remove();
+            const container = chatWindow.document.getElementById('floating-typing');
+            if (container.children.length === 0) {
+                const chatContainer = chatWindow.document.getElementById('chat-container'); chatContainer.classList.remove('shift-up');
+            }
+        }
+
+        async function typeInInputBox(text, pauseAfter) {
+            if (!chatWindow || chatWindow.closed) return;
+            if (text.startsWith('img:')) { await wait(pauseAfter * 1000); return; }
+
+            const inputEl = chatWindow.document.getElementById('fake-input'); const rightIcons = chatWindow.document.getElementById('right-icons'); const sendBtn = chatWindow.document.getElementById('send-btn');
+            rightIcons.style.display = 'none'; sendBtn.style.display = 'block'; inputEl.style.color = document.getElementById('dark-mode-toggle').checked ? "#fff" : "#000";
+            const charDelay = 40; 
+
+            playLoopingSound('povType'); // START LOOP POV
+
+            for (let i = 0; i <= text.length; i++) {
+                if (stopFlag) break;
+                inputEl.innerText = text.substring(0, i) + "|";
+                await wait(charDelay);
+            }
+            
+            stopLoopingSound('povType'); // STOP LOOP POV
+
+            const typingTook = text.length * charDelay; const scriptTimeMs = pauseAfter * 1000;
+            let remainingWait = scriptTimeMs - typingTook;
+            if (remainingWait < 300) remainingWait = 300;
+            if (!stopFlag) await wait(remainingWait);
+            await wait(200); 
+            inputEl.innerHTML = '<span class="input-placeholder">Message...</span>'; inputEl.style.color = ""; rightIcons.style.display = 'flex'; sendBtn.style.display = 'none';
+        }
+
+        function showSystemMessage(text) {
+            if (!chatWindow || chatWindow.closed) return;
+            const container = chatWindow.document.getElementById('chat-container'); const row = chatWindow.document.createElement('div'); row.className = 'system-row'; row.innerHTML = `<div class="system-bubble">${text}</div>`; container.appendChild(row); container.scrollTop = container.scrollHeight;
+        }
+
+        function showReaction(emoji) {
+            if (!chatWindow || chatWindow.closed) return;
+            const container = chatWindow.document.getElementById('chat-container'); const lastMsg = container.lastElementChild;
+            if (lastMsg && lastMsg.classList.contains('message-row')) {
+                const bubble = lastMsg.querySelector('.bubble');
+                if (bubble) { const reactDiv = chatWindow.document.createElement('div'); reactDiv.className = 'reaction'; reactDiv.innerText = emoji; bubble.appendChild(reactDiv); }
+            }
+        }
+
+        function showMessage(char, text) {
+            if (!chatWindow || chatWindow.closed) return;
+            const container = chatWindow.document.getElementById('chat-container'); const msgRow = chatWindow.document.createElement('div'); msgRow.className = char.isPov ? 'message-row right' : 'message-row';
+            let bubbleContent = text; let bubbleClass = 'bubble';
+            if(text.startsWith('img:')) {
+                const url = text.replace(/^img:\s*/i, '').trim(); bubbleContent = `<img src="${url}" onload="this.parentElement.parentElement.parentElement.scrollIntoView({behavior:'smooth', block:'end'})">`; bubbleClass += ' is-image';
+            }
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            msgRow.innerHTML = `${char.isPov ? '' : `<img src="${char.img}" class="avatar">`}<div class="content-col">${char.isPov ? '' : `<div class="name-row"><span class="username">${char.name}</span> <span class="timestamp">${time}</span></div>`}<div class="${bubbleClass}">${bubbleContent}</div></div>`;
+            container.appendChild(msgRow); container.scrollTop = container.scrollHeight;
+
+            // Auto-scroll if enabled
+            if (autoScrollEnabled) container.scrollTop = container.scrollHeight;
+            
+            if (char.isPov) playOneShot('sent', synthSent);
+            else playOneShot('received', synthReceived);
+        }
+        init();
+    </script>
+</body>
+</html>
